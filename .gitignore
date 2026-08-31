@@ -1,0 +1,7 @@
+node_modules/
+
+# The substrate study. Measurements and the programs that made them, not source.
+bench/
+
+.DS_Store
+*.log

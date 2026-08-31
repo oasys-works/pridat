@@ -1,0 +1,21 @@
+{
+  "name": "@oasys/pridat",
+  "private": true,
+  "type": "module",
+  "version": "0.0.0",
+  "description": "Primitive data types for JavaScript: fixed layout, zero-copy sharing, and the pieces to build on them",
+  "license": "MIT",
+  "scripts": {
+    "test": "node test/run-all.js",
+    "typecheck": "tsc --noEmit",
+    "bench": "node --expose-gc bench/run-all.js"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "typescript": "^5.9.3"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/oasys-works/pridat.git"
+  }
+}
