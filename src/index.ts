@@ -11,9 +11,9 @@
 // ---------------------------------------------------------------------------
 // Declare a layout
 // ---------------------------------------------------------------------------
-export { array, bool, f32, f64, i8, i16, i32, i64, u8, u16, u32, u64 } from './schema.ts';
+export { array, bool, f32, f64, i8, i16, i32, i64, str, u8, u16, u32, u64 } from './schema.ts';
 export { packed, struct, vec2, vec3, vec4 } from './layout.ts';
-export type { ArrayTy, Fields, I64Pair, Scalar, ScalarKind, StructTy, Ty } from './schema.ts';
+export type { ArrayTy, Fields, I64Pair, Scalar, ScalarKind, Str, StructTy, Ty } from './schema.ts';
 
 // ---------------------------------------------------------------------------
 // Read a layout. Code generators, WASM emitters and allocators need this.
@@ -41,6 +41,11 @@ export type {
 } from './codegen.ts';
 
 // ---------------------------------------------------------------------------
+// Emit the layout as Zig, for a WASM or native side that reads the same bytes
+// ---------------------------------------------------------------------------
+export { zigModule } from './zig-emit.ts';
+
+// ---------------------------------------------------------------------------
 // Own the memory
 // ---------------------------------------------------------------------------
 export { Arena, MAX_ARENA_BYTES } from './arena.ts';
@@ -51,6 +56,12 @@ export type { ArenaOptions, ArenaReport, Growth } from './arena.ts';
 // ---------------------------------------------------------------------------
 export { MAX_POOL_CAPACITY, Pool, pool, poolPtrAlign } from './pool.ts';
 export type { Handle, PoolOptions, PoolReport } from './pool.ts';
+
+// ---------------------------------------------------------------------------
+// Hold the text a `str` field names
+// ---------------------------------------------------------------------------
+export { attachStrings, EMPTY, MAX_STRINGS, Strings, strings } from './strings.ts';
+export type { StringsOptions, StringsReport, StringsShare } from './strings.ts';
 
 // ---------------------------------------------------------------------------
 // Share a pool with another thread

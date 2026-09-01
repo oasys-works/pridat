@@ -38,7 +38,7 @@ export type AccessUnit = 'i8' | 'u8' | 'i16' | 'u16' | 'i32' | 'u32' | 'f32' | '
 
 const UNIT: Readonly<Record<ScalarKind, AccessUnit>> = {
   i8: 'i8', u8: 'u8', i16: 'i16', u16: 'u16', i32: 'i32', u32: 'u32',
-  f32: 'f32', f64: 'f64', bool: 'u8', i64: 'u32', u64: 'u32',
+  f32: 'f32', f64: 'f64', bool: 'u8', i64: 'u32', u64: 'u32', str: 'u32',
 };
 
 const UNIT_SIZE: Readonly<Record<AccessUnit, number>> = {

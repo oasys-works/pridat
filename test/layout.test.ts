@@ -1,26 +1,30 @@
 // The layout engine, checked against hand-computed byte positions and against
 // invariants that the accessor generator will rely on.
 //
-// The hand-computed cases are the point. Rule 4 says a machine must compute the
-// byte positions and a person must not — which is only worth anything if a
-// person checked the machine once, on paper, for cases small enough to hold in
-// the head. test/repr.test.ts then checks the same rules against rustc and cc.
+// The hand-computed cases are the point. A machine computes the byte positions
+// and a person must not. That is only worth anything if a person checked the
+// machine once, on paper, for cases small enough to hold in the head.
+// test/repr.test.ts then checks the same rules against rustc, cc and zig.
 
 import {
   array, bool, explain, f32, f64, i8, i16, i32, i64, packed,
-  leafAligned, leafCount, leafOffset, measure, soaColumns, struct, u8, u16, u32, u64, vec2, vec3, vec4,
+  leafAligned, leafCount, leafOffset, measure, soaColumns, str, struct, u8, u16, u32, u64, vec2, vec3, vec4,
 } from '../src/index.ts';
 import type { Layout, Leaf, ScalarKind } from '../src/index.ts';
 import { group, report } from './harness.ts';
 
-const KINDS: ScalarKind[] = ['i8', 'u8', 'i16', 'u16', 'i32', 'u32', 'i64', 'u64', 'f32', 'f64', 'bool'];
+const KINDS: ScalarKind[] = [
+  'i8', 'u8', 'i16', 'u16', 'i32', 'u32', 'i64', 'u64', 'f32', 'f64', 'bool', 'str',
+];
 
 group('scalar sizes match the C type they name', t => {
   const expect: Record<ScalarKind, [number, number]> = {
     i8: [1, 1], u8: [1, 1], i16: [2, 2], u16: [2, 2], i32: [4, 4], u32: [4, 4],
     i64: [8, 8], u64: [8, 8], f32: [4, 4], f64: [8, 8], bool: [1, 1],
+    // A handle, and the same word every other reader sees.
+    str: [4, 4],
   };
-  const ty = { i8, u8, i16, u16, i32, u32, i64, u64, f32, f64, bool };
+  const ty = { i8, u8, i16, u16, i32, u32, i64, u64, f32, f64, bool, str };
   for (const k of KINDS) {
     const m = measure(ty[k]);
     t.eq(`${k} is ${expect[k][0]} B / align ${expect[k][1]}`, [m.size, m.align], expect[k]);
@@ -28,7 +32,7 @@ group('scalar sizes match the C type they name', t => {
 });
 
 group('offsets a person can check on paper', t => {
-  // Every field at its natural alignment; struct size rounded up to struct align.
+  // Every field at its natural alignment. Struct size rounds up to struct align.
   const P = struct({ pos: vec3(f32), vel: vec3(f32), mass: f32, alive: bool }, 'Particle');
   t.eq('Particle leaf offsets', P.leaves.map(l => [l.path, l.offset]), [
     ['pos.x', 0], ['pos.y', 4], ['pos.z', 8],
@@ -39,7 +43,7 @@ group('offsets a person can check on paper', t => {
   t.eq('Particle align is 4', P.align, 4);
   t.eq('Particle wastes 3 B of tail padding', P.padding, 3);
 
-  // u8 then u32 forces three bytes of interior padding; the tail rounds to 8.
+  // u8 then u32 forces three bytes of interior padding. The tail rounds to 8.
   const Ragged = struct({ a: u8, b: u32, c: u8, d: f64, e: u8 }, 'Ragged');
   t.eq('Ragged offsets', Ragged.leaves.map(l => l.offset), [0, 4, 8, 16, 24]);
   t.eq('Ragged stride is 32 B', Ragged.size, 32);
@@ -197,7 +201,7 @@ group('layout invariants hold for every schema in the corpus', t => {
 });
 
 group('alignment is a property of a leaf, not of a struct', t => {
-  // An UNPACKED struct holding a PACKED one has unaligned leaves; a PACKED
+  // An unpacked struct holding a packed one has unaligned leaves. A packed
   // struct's u8 fields are still aligned. Neither follows from the outer flag.
   const expect: Record<string, string[]> = {
     Packed: ['b', 'd'],
@@ -214,7 +218,7 @@ group('alignment is a property of a leaf, not of a struct', t => {
   t.ok('explain names them', explain(AoP).includes('rows.b'));
 });
 
-group('one table, two readings — SoA columns come from the same leaves', t => {
+group('one table, two readings. SoA columns come from the same leaves', t => {
   const M = CORPUS.find(c => c.name === 'Mesh')!.type;
   const cols = soaColumns(M);
   t.eq('one column per accessor site', cols.length, M.leaves.length);

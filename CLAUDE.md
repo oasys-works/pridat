@@ -131,7 +131,11 @@ One meaning each. Invent no synonym.
 - **view** the typed array or DataView an accessor reads through
 - **plan** what the generator will emit, before it emits it
 - **arena** the owner of the memory
-- **handle** what a user holds, and where a check belongs
+- **handle** what a user holds, and where a check belongs. Two kinds exist,
+  and prose names which: a **row handle** carries a slot and a generation, and
+  a **string handle** is the `u32` a `str` field holds
+- **blob** the UTF-8 bytes a string table owns
+- **span** one offset and one length, naming a string inside the blob
 
 ## Before you commit
 

@@ -3,5 +3,7 @@ node_modules/
 # The substrate study. Measurements and the programs that made them, not source.
 bench/
 
+dist/
+
 .DS_Store
 *.log

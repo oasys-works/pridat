@@ -1,21 +1,63 @@
 {
   "name": "@oasys/pridat",
-  "private": true,
+  "version": "0.1.0",
   "type": "module",
-  "version": "0.0.0",
   "description": "Primitive data types for JavaScript: fixed layout, zero-copy sharing, and the pieces to build on them",
+  "keywords": [
+    "struct",
+    "layout",
+    "repr-c",
+    "zero-copy",
+    "sharedarraybuffer",
+    "typed-arrays",
+    "arena",
+    "soa",
+    "wasm",
+    "zig"
+  ],
   "license": "MIT",
+  "author": "2khan",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/oasys-works/pridat.git"
+  },
+  "homepage": "https://github.com/oasys-works/pridat#readme",
+  "bugs": {
+    "url": "https://github.com/oasys-works/pridat/issues"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "src",
+    "!src/wasm-emit.*",
+    "README.md",
+    "USAGE.md",
+    "LICENSE"
+  ],
+  "sideEffects": false,
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
+    "build": "node --input-type=commonjs -e \"require('node:fs').rmSync('dist',{recursive:true,force:true})\" && tsc -p tsconfig.build.json",
     "test": "node test/run-all.js",
     "typecheck": "tsc --noEmit",
-    "bench": "node --expose-gc bench/run-all.js"
+    "bench": "node --expose-gc bench/run-all.js",
+    "prepack": "npm run build"
   },
   "devDependencies": {
     "@types/node": "^26.2.0",
     "typescript": "^5.9.3"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git+ssh://git@github.com/oasys-works/pridat.git"
   }
 }

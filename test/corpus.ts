@@ -5,7 +5,7 @@
 
 import {
   array, bool, f32, f64, i8, i16, i32, i64,
-  packed, struct, u8, u16, u32, u64, vec2, vec3, vec4,
+  packed, str, struct, u8, u16, u32, u64, vec2, vec3, vec4,
 } from '../src/index.ts';
 import type { Struct } from '../src/index.ts';
 
@@ -30,6 +30,11 @@ export const CORPUS: Case[] = [
   // row one, thus this is the shape that separates a promise about row zero
   // from a promise about every row.
   { name: 'PackedWide', type: packed({ b: f64, a: u8 }, 'PackedWide') },
+  // A `str` is a `u32` to rustc, cc and zig. These two cases are what holds
+  // that claim: one beside a wider field that forces padding around it, and one
+  // repeated inline.
+  { name: 'Named', type: struct({ id: u64, name: str, tag: u8 }, 'Named') },
+  { name: 'Labels', type: struct({ names: array(str, 3), n: u8 }, 'Labels') },
   { name: 'MatrixHeavy', type: struct({ m: array(f32, 16), n: array(f64, 4), tag: u8 }, 'MatrixHeavy') },
   { name: 'ArrayOfPacked', type: struct({
       head: u16, rows: array(packed({ a: u8, b: u32 }), 3), tail: u8 }, 'ArrayOfPacked') },

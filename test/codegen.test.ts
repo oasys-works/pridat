@@ -1,15 +1,15 @@
 // The accessor generator, checked against an oracle that does not share its
-// arithmetic — and checked for obeying the rules it claims to obey.
+// arithmetic, and checked for obeying the rules it claims to obey.
 //
-// Two halves, and the second is the one FINDINGS §36 is about. Correctness is
-// cross-checked field by field against a DataView driven by `leafOffset()`,
-// which is layout.ts's own checked addressing and not codegen's string-built
-// expressions; a negative control perturbs one offset to prove the cross-check
-// can fail. But a generator can be perfectly correct and still emit code that
-// costs 5x, and no round-trip would notice — so the source text itself is
-// asserted against rules 1, 3, 9 and 17: a literal `true` for endianness, a
-// `base + offset` index, no `throw` on an accessor path, no wrapper, no Proxy,
-// and nothing emitted for a field nobody asked for.
+// Two halves, and the second is about the shape of the emitted text.
+// Correctness is cross-checked field by field against a DataView driven by
+// `leafOffset()`, which is layout.ts's own checked addressing and not codegen's
+// string-built expressions. A negative control perturbs one offset to prove the
+// cross-check can fail. But a generator can be correct and still emit code that
+// takes a slow path, and no round-trip would notice. So the source text itself
+// is asserted: a literal `true` for endianness, a `base + offset` index, no
+// `throw` on an accessor path, no wrapper, no Proxy, and nothing emitted for a
+// field nobody asked for.
 
 import {
   accessorModule, accessorPlan, accessors, accessorsFrom, accessorSource, emitAccessors,
@@ -44,7 +44,7 @@ function combos(dims: readonly Dim[]): number[][] {
  *
  * It goes through `leafOffset`, which is the layout engine's own checked
  * addressing, and adds the half-offset for a 64-bit site by subtraction rather
- * than by rebuilding it — so nothing here reproduces codegen's arithmetic.
+ * than by rebuilding it, so nothing here reproduces codegen's arithmetic.
  */
 const addrOf = (leaf: Leaf, site: Site, ix: number[]): number =>
   leafOffset(leaf, ...ix) + (site.offset - leaf.offset);
@@ -180,7 +180,7 @@ const DV_CALL = /\.(?:get|set)(?:Int8|Uint8|Int16|Uint16|Int32|Uint32|Float32|Fl
 
 group('rule 1: DataView calls take a literal endianness and a base+offset index', t => {
   // Every packed schema in the corpus, plus the awkward nesting cases, so this
-  // sees real DataView output and not just the aligned fast path.
+  // sees real DataView output and not the aligned fast path alone.
   let calls = 0;
   let wideCalls = 0;
   for (const { name, type } of CORPUS) {
@@ -190,8 +190,8 @@ group('rule 1: DataView calls take a literal endianness and a base+offset index'
       const args = m[1]!.split(',').map(s => s.trim());
       const index = args[0]!;
       // Experiment 15 located this exactly: only the BARE RESULT OF A MULTIPLY
-      // is penalised (1.25x on V8), and adding anything to it — including zero
-      // — recovers parity. So the property is that the index is a sum, not that
+      // is penalised (1.25x on V8), and adding anything to it, zero included,
+      // recovers parity. So the property is that the index is a sum, not that
       // it has any particular shape. Every expression emitted here is a flat
       // unparenthesised sum, so splitting on `+` is enough to see the top-level
       // operator.
@@ -277,9 +277,9 @@ group('typed access vs DataView is decided per SITE, by the access unit', t => {
   }
 });
 
-group('a 64-bit leaf needs no DataView just for being 8 bytes wide', t => {
-  // `Layout.unaligned` reports the FIELD's natural alignment; codegen asks a
-  // different question, about the ACCESS. An i64 is read as two u32 halves, and
+group('a 64-bit leaf needs no DataView for being 8 bytes wide', t => {
+  // `Layout.unaligned` reports the field's natural alignment. Codegen asks a
+  // different question, about the access. An i64 is read as two u32 halves, and
   // a 4-aligned i64 is two perfectly aligned u32 reads.
   const S = struct({ head: u32, id: i64 }, 'S');
   const plan = accessorPlan(S);

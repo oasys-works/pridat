@@ -7,32 +7,32 @@
 //
 // Each `type _NN = Expect<...>` below is one assertion. They hold if and only if
 // `tsc --noEmit` succeeds over this file, so this file runs tsc itself rather
-// than trusting that somebody else did — PHILOSOPHY Part II §14.
+// than trusting that somebody else did.
 
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import {
-  accessors, array, bool, f32, f64, i32, i64, packed, struct, u8, u16, u32, u64, vec2, vec3, vec4,
+  accessors, array, bool, f32, f64, i32, i64, packed, str, struct, u8, u16, u32, u64, vec2, vec3, vec4,
 } from '../src/index.ts';
 import type {
   Accessors, Getter, I64Pair, Leaf64, LeafPath, LeafView, Row, Setter,
-  SiteIndices, SitePath, SiteValue, Value, View,
+  SiteIndices, SitePath, SiteValue, Str, Value, View,
 } from '../src/index.ts';
 import { group, report, skip } from './harness.ts';
 
 /**
  * Structural equality that `any` cannot pass.
  *
- * The invariant-position trick — `(<T>() => T extends A ? 1 : 2) extends ...` —
+ * The invariant-position trick, `(<T>() => T extends A ? 1 : 2) extends ...`,
  * is the usual way to write this, and it is wrong here. It compares how a type
  * was BUILT as well as what it contains, so two structurally identical tuples
  * answer false if one came from a mapped type and the other was written by hand.
  * `Row<typeof Mesh>` is exactly that case and it cost an afternoon.
  *
  * Mutual assignability is structural and does not care. On its own it would let
- * `any` through, since `any` is assignable in both directions — so every `any`
+ * `any` through, since `any` is assignable in both directions, so every `any`
  * is first rewritten to a sentinel that is assignable to nothing else. The
  * instrument is checked in both directions by _12a-_12d below.
  */
@@ -47,7 +47,7 @@ type Equals<A, B> = Both<DeAny<A>, DeAny<B>>;
 
 /**
  * True if property K of T can be assigned to. Mutual assignability cannot see a
- * `readonly` modifier, so this uses the invariant trick, which can — and which
+ * `readonly` modifier, so this uses the invariant trick, which can, and which
  * is safe here because both sides are built the same way.
  */
 type Identical<A, B> = (<T>() => T extends A ? 1 : 2) extends (<T>() => T extends B ? 1 : 2) ? true : false;
@@ -89,8 +89,8 @@ type _04 = Expect<Equals<Row<typeof Grid>, {
 type _05 = Expect<Equals<Row<typeof Packed>, { a: number; b: number }>>; // packed changes bytes, not types
 
 // A row value is a scratch object a caller fills in, so it must be writable.
-// `const F extends Fields` makes every declared field readonly and that leaks
-// through the mapped type unless it is stripped; these catch the regression.
+// `const F extends Fields` makes every declared field readonly, and that leaks
+// through the mapped type unless it is stripped. These catch the regression.
 type _05a = Expect<Equals<Writable<Row<typeof Particle>, 'mass'>, true>>; // a scalar field is writable
 type _05b = Expect<Equals<Writable<Row<typeof Particle>['pos'], 'x'>, true>>; // ...and so is a nested one
 type _05c = Expect<Equals<Writable<{ readonly a: number }, 'a'>, false>>; // and the check can say no
@@ -176,7 +176,7 @@ type _38 = Expect<Equals<ReturnType<ReturnType<ParticleAcc['bind']>['read']>, Ro
 // `bind()` returns a Float32Array for `pos.x` and a Uint8Array for `alive`, and
 // an untagged `LeafView` said neither. Crossing them reads a byte index as a
 // float index: a plausible wrong number and no error, anywhere. The tag is a
-// name, which is the one kind of thing the checker can hold here — bounds are
+// name, which is the one kind of thing the checker can hold here. Bounds are
 // counting and stay with `check()`.
 
 type _39 = Expect<Equals<Parameters<Getter<typeof Particle, 'pos.x'>>[0], View<'pos.x'>>>;
@@ -193,6 +193,32 @@ type _43 = Expect<[View<'alive'>] extends [View<'pos.x'>] ? false : true>;
 // ...but a view tagged with a DIFFERENT site is not, which is the whole point
 type _44 = Expect<[View<'pos.x'>] extends [LeafView] ? true : false>;
 // and a tagged view is still a LeafView, so fits() and check() take it unchanged
+
+// --- a str field is a handle everywhere it appears ---------------------------
+//
+// One field, one meaning. A getter, a row and a setter all say `Str`, so
+// nothing in the type layer suggests that text comes out of a walk.
+
+const Item = struct({ id: u64, name: str, tag: u8 }, 'Item');
+
+type _45 = Expect<Equals<SiteValue<typeof Item, 'name'>, Str>>;
+type _46 = Expect<Equals<Row<typeof Item>['name'], Str>>;
+type _47 = Expect<Equals<ReturnType<Getter<typeof Item, 'name'>>, Str>>;
+type _48 = Expect<Equals<Parameters<Setter<typeof Item, 'name'>>[2], Str>>;
+type _49 = Expect<Equals<SitePath<typeof Item>, 'id.lo' | 'id.hi' | 'name' | 'tag'>>;
+// a str leaf is one site and never two, unlike the u64 beside it
+type _50 = Expect<Equals<SiteIndices<typeof Item, 'name'>, []>>;
+
+// A handle you carried through your own u32 still works, because the tag is
+// optional. That is the same trade the View tag makes, and the same cost.
+type _51 = Expect<[number] extends [Str] ? true : false>;
+type _52 = Expect<[Str] extends [number] ? true : false>;
+
+// An inline array of str is an array of handles, indexed like any other.
+const Labels = struct({ names: array(str, 3) }, 'Labels');
+type _53 = Expect<Equals<SiteIndices<typeof Labels, 'names'>, [number]>>;
+type _54 = Expect<Equals<SiteValue<typeof Labels, 'names'>, Str>>;
+type _55 = Expect<Equals<Row<typeof Labels>['names'], [Str, Str, Str]>>;
 
 // --- and the checker enforces it at the call site ----------------------------
 
@@ -313,12 +339,12 @@ let out: string | null = null;
 try {
   readFileSync(tsc);
 } catch {
-  skip('the type layer', 'typescript is not installed — every type-level claim is unmeasured');
+  skip('the type layer', 'typescript is not installed. Every type-level claim is unmeasured');
 }
 
 if (claims.length === 0) {
   // A parser that finds nothing must fail loudly.
-  throw new Error('found no type-level assertions in this file — the counter is broken, not the types');
+  throw new Error('found no type-level assertions in this file. The counter is broken, not the types');
 }
 
 try {

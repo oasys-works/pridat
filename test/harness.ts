@@ -1,10 +1,9 @@
 // A test harness that says out loud how many assertions it ran.
 //
-// PHILOSOPHY Part II §14: two experiments in this repository sat crashing for
-// several rounds while the runner printed success, because it counted an error
-// the same way it counted a refuted hypothesis. So this harness reports three
-// numbers and never merges them: assertions passed, assertions failed, and
-// groups that threw before they could finish asserting.
+// A runner that counts an error the same way it counts a refuted hypothesis
+// prints success over a crash. So this harness reports three numbers and never
+// merges them: assertions passed, assertions failed, and groups that threw
+// before they could finish asserting.
 //
 // Something absent is NAMED, never skipped silently. `skip()` prints its reason
 // and is reported in the summary.
@@ -81,7 +80,7 @@ export function group(name: string, body: (t: T) => void): void {
 /** Name what did not run, and why. Never skip in silence. */
 export function skip(name: string, reason: string): void {
   skipped.push(`${name} (${reason})`);
-  console.log(`  [SKIP] ${name} — ${reason}`);
+  console.log(`  [SKIP] ${name}. ${reason}`);
 }
 
 /** Print the machine-readable result line and set the exit code. */

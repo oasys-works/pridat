@@ -1,0 +1,25 @@
+// What ships. The base config typechecks the repository, tests included, and
+// emits nothing. This one emits `src` alone.
+//
+// The source imports with `.ts` specifiers, because the test suite runs the
+// source directly on three engines and a specifier must name the file that is
+// there. `rewriteRelativeImportExtensions` turns those into `.js` on the way
+// out, so the published package is ordinary ESM and the repository stays
+// runnable. One source of truth for the module graph, and no second copy of it.
+//
+// `types` is empty on purpose. Nothing under `src` touches a Node API, thus a
+// consumer of the published types does not inherit `@types/node`.
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "rewriteRelativeImportExtensions": true,
+    "outDir": "dist",
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "types": []
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["src/**/*.d.ts"]
+}

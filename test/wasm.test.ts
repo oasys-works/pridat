@@ -1,8 +1,7 @@
 // One layout, two backends.
 //
-// PHILOSOPHY Part I §2: we want one layout that all parts read, so a boundary is
-// one number and not a translation. That is a testable claim and this is the
-// test — the offsets that JS reads with and the offsets baked into WASM
+// One layout that all parts read makes a boundary one number, and not a
+// translation. That is a testable claim and this is the test. The offsets that JS reads with and the offsets baked into WASM
 // `memarg` immediates come from the same `struct()` call, and neither side
 // is allowed to name a byte position.
 //
@@ -63,7 +62,7 @@ const G = (l: number) => [OP.local_get, l];
 const rowBase = (ptrLocal: number, iLocal: number, into: number) => [
   ...G(ptrLocal), ...G(iLocal), OP.i32_const, ...sleb(STRIDE), OP.i32_mul, OP.i32_add, OP.local_set, into,
 ];
-/** while (i < n) { ...body...; i++ } — i is `iLocal`, n is `nLocal`. */
+/** while (i < n) { ...body...; i++ }, where i is `iLocal` and n is `nLocal`. */
 const loop = (iLocal: number, nLocal: number, body: number[]) => [
   OP.block, T.void,
   OP.loop, T.void,

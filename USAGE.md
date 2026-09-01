@@ -360,6 +360,135 @@ accessorsFrom: Particle: the generated module does not match the schema it was
 given. expected "size=40", got "size=32". Regenerate it.
 ```
 
+## Cross a language
+
+`zigModule` writes the layout as Zig, for a WASM or native side that reads the
+same rows.
+
+```ts
+// build step
+writeFileSync('particle.zig', zigModule(Particle))
+```
+
+It emits one `extern struct` for each distinct struct in the schema, children
+before parents, then a `comptime` block over every size, alignment and offset.
+
+```zig
+comptime {
+    if (@sizeOf(Particle) != 32) @compileError("Particle is not 32 B. Regenerate this file from the schema.");
+}
+```
+
+Keep the block. It costs nothing at run time. A generated file outlives the
+schema that made it, and this is what refuses one the schema has moved past.
+
+Name the root struct. Zig cannot read the default name.
+
+```ts
+zigModule(struct({ x: f32 }))            // wrong, "struct" is a Zig keyword
+zigModule(struct({ x: f32 }, 'Point'))   // right
+zigModule(Particle, 'Point')             // right, the second argument renames it
+```
+
+Write one file for each schema. Two schemas may each hold a struct named `vec3`,
+and `@import` keeps those apart.
+
+A packed row emits `extern struct` with `align(1)` on each field, which is C's
+packed attribute. Zig's own `packed struct` packs to bits and gives `bool` one
+bit, so this emits none.
+
+`test/repr.test.ts` compiles this output and compares every offset with the one
+zig reports.
+
+## Hold text
+
+A row cannot hold a JS string. That string is UTF-16, it moves, and the
+collector owns it. So a row holds a handle, and a table holds the bytes.
+
+`str` is a scalar in the vocabulary, beside `u8` and `bool`. It occupies four
+bytes at four-byte alignment, thus a row holding one lays out exactly as the
+same row written with `u32`, and rustc, cc and zig all see the word.
+
+```ts
+import { str, strings, EMPTY } from '@oasys/pridat'
+
+const Item = struct({ id: u64, name: str, tag: u8 }, 'Item')
+
+const arena = new Arena({ bytes: 1 << 22 })
+const text = strings(arena, { bytes: 1 << 20, capacity: 50_000 })
+const p = pool(arena, Item, { capacity: 10_000 })
+
+p.write(h, { id: {lo:1,hi:0}, name: text.intern('com.example.item'), tag: 0 })
+```
+
+Both reservations are taken once and neither grows. `bytes` holds the UTF-8.
+`capacity` counts distinct strings, and each takes one offset and one length.
+
+### The handle is what a walk reads
+
+The table interns, so the same text always gives the same handle. Compare two
+handles and touch no byte of the blob.
+
+```ts
+const getName = p.get['name'], v = p.view['name']
+const WANTED = text.intern('wanted')
+const rows = p.rows, n = p.count
+for (let i = 0; i < n; i++) if (getName(v, rows[i]) === WANTED) hits++
+```
+
+```ts
+for (let i = 0; i < n; i++) if (text.get(getName(v, rows[i])) === 'wanted') hits++
+```
+
+The second decodes a string for every row and then throws it away. Intern the
+text you are looking for once, in the preheader, and compare words.
+
+### Materializing is the step that costs
+
+```ts
+text.get(h)          // the JS string. It decodes once and keeps the result.
+text.utf8(h)         // the bytes, as a view. No copy and no decode.
+text.byteLength(h)   // bytes of UTF-8, and not characters
+```
+
+A decode is far more expensive than holding a reference. `get` caches by handle,
+so the second read of one handle on one thread is a lookup. That cache pays only
+across passes. Within a single pass over text that is mostly distinct, this
+table is slower than plain JS strings and it stays slower. Hold JS strings for a
+one-shot render, and use the table where the same text is read again.
+
+The cache holds JS strings, so it is the one place this library hands memory
+back to the collector. It is bounded by the count of distinct strings and never
+by the count of reads.
+
+### Zero is the empty string
+
+```ts
+text.get(EMPTY)   // ''
+```
+
+A zeroed field reads as empty rather than as a handle nobody issued. A pool slot
+carries whatever the last tenant left, so write every field you intend to read.
+
+### A worker reads and does not intern
+
+```ts
+worker.postMessage({ strings: text.share() })
+
+// in the worker
+const text = attachStrings(share)
+text.get(h)        // the owner's bytes, with no copy
+text.intern('x')   // throws, and says why
+```
+
+Interning needs a hash of the text, which is a JS `Map` and does not cross a
+thread. The owner interns and sends the handle. The count and the blob cursor
+live in the block, so a worker resolves a handle the owner interned after the
+message went out.
+
+Each thread decodes for itself, because a JS string does not cross a thread
+either. Two workers reading one handle each decode it once.
+
 ## When it is slow
 
 | Symptom | Look at |
@@ -370,3 +499,5 @@ given. expected "size=40", got "size=32". Regenerate it.
 | Startup is slow | `only`, and `row: false` on a partial-field plan |
 | A view reads nothing | the arena grew, so read `epoch` and bind again |
 | Scaling stops with workers | round size, because a barrier waits for the slowest |
+| Text is slower than plain strings | whether one pass reads each string once, because the cache pays across passes |
+| A walk decodes | `text.get` inside it, rather than one `intern` in the preheader |

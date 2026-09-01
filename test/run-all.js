@@ -22,13 +22,14 @@ const PORTABLE = [
   ['codegen.test.ts', 'generated accessors, against an oracle and against their own rules'],
   ['pool.test.ts', 'the arena and the pool: alignment, handles, and a dense live list'],
   ['thread.test.ts', 'pools over shared memory: what crosses, and the barrier'],
+  ['strings.test.ts', 'interned UTF-8: the handle in the row, and the text in the arena'],
 ];
 
-// Host-bound: these drive rustc, cc or tsc, which do not change with the JS
+// Host-bound: these drive rustc, cc, zig or tsc, which do not change with the JS
 // engine that launched them. Running them three times would add no information.
 const HOST = [
   ['types.test-d.ts', 'the type layer, checked by tsc'],
-  ['repr.test.ts', 'byte compatibility with Rust #[repr(C)] and C'],
+  ['repr.test.ts', 'byte compatibility with Rust #[repr(C)], C and Zig extern struct'],
 ];
 
 function version(cmd, args) {
@@ -92,12 +93,12 @@ function run(engine, file, desc) {
   if (noise) console.log(noise);
 }
 
-console.log('pridat — library suite\n');
+console.log('pridat library suite\n');
 for (const [file, desc] of PORTABLE) for (const engine of engines) run(engine, file, desc);
 for (const [file, desc] of HOST) run(engines[0], file, desc);
 
 console.log(`\n${'='.repeat(72)}`);
-console.log(`suite complete — ${passed} assertions over ${files} runs, ${failed} failed, ${errored} error(s)`);
+console.log(`suite complete. ${passed} assertions over ${files} runs, ${failed} failed, ${errored} error(s)`);
 console.log(`engines: ${engines.map(e => e.label).join('; ')}`);
 if (absent.length) console.log(`not present, so unmeasured here: ${absent.join(', ')}`);
 console.log(shells);

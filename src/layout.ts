@@ -9,13 +9,15 @@
 // rounds up to that alignment, thus an array of rows strides correctly.
 // `packed` sets each alignment to 1. It is opt-in and it costs.
 //
-// test/repr.test.ts compares these offsets with what rustc and cc emit.
+// test/repr.test.ts compares these offsets with what rustc, cc and zig emit.
 
 import type { ArrayTy, Fields, Scalar, ScalarKind, StructTy, Ty, Value } from './schema.ts';
 
 const SCALAR_SIZE: Readonly<Record<ScalarKind, number>> = {
   i8: 1, u8: 1, i16: 2, u16: 2, i32: 4, u32: 4,
   i64: 8, u64: 8, f32: 4, f64: 8, bool: 1,
+  // A handle into a `Strings` table, and a `u32` to every other reader.
+  str: 4,
 };
 
 // Natural alignment equals size for each scalar on each target we admit
@@ -24,6 +26,7 @@ const SCALAR_SIZE: Readonly<Record<ScalarKind, number>> = {
 const SCALAR_ALIGN: Readonly<Record<ScalarKind, number>> = {
   i8: 1, u8: 1, i16: 2, u16: 2, i32: 4, u32: 4,
   i64: 8, u64: 8, f32: 4, f64: 8, bool: 1,
+  str: 4,
 };
 
 export const scalarSize = (k: ScalarKind): number => SCALAR_SIZE[k];
@@ -356,8 +359,12 @@ export function struct<const F extends Fields>(fields: F, name = 'struct'): Stru
 }
 
 /**
- * Declare a struct with no padding: Rust's `#[repr(packed)]`, Zig's
- * `packed struct`.
+ * Declare a struct with no padding: Rust's `#[repr(C, packed)]`, and C's
+ * `__attribute__((packed))`.
+ *
+ * Zig spells this `extern struct` with `align(1)` on each field, which is what
+ * `zigModule` emits. A Zig `packed struct` is a different thing. That one packs
+ * to bits and gives `bool` one bit, thus it describes no row here.
  *
  * Opt-in, never a default. It breaks byte compatibility with `#[repr(C)]`, and
  * each field it puts off its natural alignment needs a slower DataView read.

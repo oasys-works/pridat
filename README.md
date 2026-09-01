@@ -21,8 +21,12 @@ tolerate exposing. It is the product.
 npm install @oasys/pridat
 ```
 
-Nothing is published yet. Until it is, clone this repository and import from
-`src/index.ts`.
+The tarball ships `dist/` and the two documents. `npm run build` emits the
+JavaScript, the declarations and the source maps, so a consumer needs nothing
+from this repository.
+
+The declarations carry no dependency. Nothing under `src` imports a Node
+builtin, thus the published types pull in no `@types` package of their own.
 
 ## Declare a layout
 
@@ -97,6 +101,61 @@ The share holds the block, two byte offsets, the stride, and the accessors as
 text. The block is a `SharedArrayBuffer`, so posting it copies nothing. The text
 means the worker needs no schema, no layout engine and no library.
 
+## Cross a language
+
+`zigModule` writes the same layout as Zig, for a WASM or native side that reads
+the row.
+
+```ts
+writeFileSync('particle.zig', zigModule(Particle))
+```
+
+```zig
+pub const Particle = extern struct {
+    pos: vec3,
+    vel: vec3,
+    mass: f32,
+    alive: bool,
+};
+
+comptime {
+    if (@sizeOf(Particle) != 32) @compileError("Particle is not 32 B. Regenerate this file from the schema.");
+    ...
+}
+```
+
+The comptime block costs nothing at run time and fails the Zig build if the two
+sides ever disagree about a byte. A generated file outlives the schema that made
+it, and this is what refuses one the schema has moved past.
+
+## Hold text
+
+A row cannot hold a JS string, so a row holds a handle and a table holds the
+bytes. `str` is four bytes, thus Rust, C and Zig see a `u32` and the row keeps
+its exact layout.
+
+```ts
+import { str, strings } from '@oasys/pridat'
+
+const Item = struct({ id: u64, name: str, tag: u8 }, 'Item')
+const text = strings(arena, { bytes: 1 << 20, capacity: 50_000 })
+
+p.write(h, { id: {lo:1,hi:0}, name: text.intern('com.example.item'), tag: 0 })
+
+const getName = p.get['name'], v = p.view['name']
+getName(v, ptr) === WANTED       // the filter, and it reads no byte of the blob
+text.get(getName(v, ptr))        // the JS string, and this is the step that costs
+```
+
+The table interns, thus the same text always gives the same handle and equality
+is a word compare. The bytes live in the arena, thus a worker attaches the same
+block and reads the same text with no copy.
+
+Materializing a JS string is a decode, and a decode is far more expensive than
+holding a reference. A cache hides that only for text you read again on a later
+pass. For a one-shot walk over text that is mostly distinct, hold JS strings and
+skip the table.
+
 ## Read next
 
 | | |
@@ -107,18 +166,20 @@ means the worker needs no schema, no layout engine and no library.
 ## What is built
 
 The schema, the layout engine, the accessor generator, the byte map, the arena,
-the pool and the parallel layer. WebAssembly reads the same field table, and
-`test/wasm.test.ts` runs both backends over one set of offsets.
+the pool, the parallel layer and the string table. WebAssembly reads the same
+field table, and `test/wasm.test.ts` runs both backends over one set of offsets.
 
-Strings stay specified and unclaimed.
+A worker reads the string table and cannot add to it. Interning needs a hash of
+the text, which is a JS `Map` and does not cross a thread. The owner interns and
+sends the handle.
 
 ```
-npm test    # three engines, plus rustc, cc and tsc
+npm test    # three engines, plus rustc, cc, zig and tsc
 ```
 
-The suite emits the same schemas as Rust `#[repr(C)]` and as C, then compiles
-both. It compares every size, alignment and field offset. `test/repr.test.ts` is
-where that agreement is checked.
+The suite emits the same schemas as Rust `#[repr(C)]`, as C, and as Zig
+`extern struct`, then compiles all three. It compares every size, alignment and
+field offset. `test/repr.test.ts` is where that agreement is checked.
 
 ## The honest claims
 
