@@ -25,11 +25,12 @@ const PORTABLE = [
   ['strings.test.ts', 'interned UTF-8: the handle in the row, and the text in the arena'],
 ];
 
-// Host-bound: these drive rustc, cc, zig or tsc, which do not change with the JS
-// engine that launched them. Running them three times would add no information.
+// Host-bound: these drive rustc, cc, zig, npm or tsc, which do not change with
+// the JS engine that launched them. Running them three times would add no information.
 const HOST = [
   ['types.test-d.ts', 'the type layer, checked by tsc'],
   ['repr.test.ts', 'byte compatibility with Rust #[repr(C)], C and Zig extern struct'],
+  ['package.test.ts', 'the published tarball: entry points, maps, and a consumer typecheck'],
 ];
 
 function version(cmd, args) {

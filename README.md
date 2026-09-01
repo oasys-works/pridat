@@ -21,12 +21,16 @@ tolerate exposing. It is the product.
 npm install @oasys/pridat
 ```
 
-The tarball ships `dist/` and the two documents. `npm run build` emits the
-JavaScript, the declarations and the source maps, so a consumer needs nothing
-from this repository.
+`npm run build` emits the JavaScript, the declarations and the source maps, so
+a consumer needs nothing from this repository.
 
 The declarations carry no dependency. Nothing under `src` imports a Node
-builtin, thus the published types pull in no `@types` package of their own.
+builtin, thus the published types pull in no `@types` package of their own, and
+they resolve under `bundler`, `node16` and `nodenext` alike.
+
+The tarball ships `src` beside `dist`, so a source map and a go-to-definition
+land on the real source. `test/package.test.ts` packs the tarball, installs it
+and compiles a consumer against it, which is where those claims are checked.
 
 ## Declare a layout
 
@@ -174,7 +178,7 @@ the text, which is a JS `Map` and does not cross a thread. The owner interns and
 sends the handle.
 
 ```
-npm test    # three engines, plus rustc, cc, zig and tsc
+npm test    # three engines, plus rustc, cc, zig, npm and tsc
 ```
 
 The suite emits the same schemas as Rust `#[repr(C)]`, as C, and as Zig
